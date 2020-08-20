@@ -884,12 +884,12 @@ namespace LotteryWebService
                         {                            
                             Referralds.Tables.Remove("ReferralInfo");                            
                             Level1dt = Referralds.Tables.Add("Level1Info");
-                            Sqlda.Fill(Referralds, "Level1dt");
+                            Sqlda.Fill(Referralds, "Level1Info");
                            
                             // check level 2
-                            for (int i1 = 0; i1 < Referralds.Tables["Level1dt"].Rows.Count; i1++)
+                            for (int i1 = 0; i1 < Referralds.Tables["Level1Info"].Rows.Count; i1++)
                             { 
-                                using (SqlCmd = new SqlCommand("SELECT FirstName,ReferenceCode FROM UserInfo WHERE ReferenceBy='" + Referralds.Tables["Level1dt"].Rows[i1][1] + "'", SqlCon))
+                                using (SqlCmd = new SqlCommand("SELECT FirstName,ReferenceCode FROM UserInfo WHERE ReferenceBy='" + Referralds.Tables["Level1Info"].Rows[i1][1] + "'", SqlCon))
                                 {
                                     using (Sqlda = new SqlDataAdapter(SqlCmd))
                                     {
@@ -898,13 +898,13 @@ namespace LotteryWebService
                                         {
                                             Referralds.Tables.Remove("ReferralInfo");
                                             Level2dt = Referralds.Tables.Add("Level2Info");
-                                            Sqlda.Fill(Referralds, "Level2dt");
+                                            Sqlda.Fill(Referralds, "Level2Info");
                                            
 
                                             //check level 3
-                                            for (int i2 = 0; i2 < Referralds.Tables["Level2dt"].Rows.Count; i2++)
+                                            for (int i2 = 0; i2 < Referralds.Tables["Level2Info"].Rows.Count; i2++)
                                             {
-                                                using (SqlCmd = new SqlCommand("SELECT FirstName,ReferenceCode FROM UserInfo WHERE ReferenceBy='" + Referralds.Tables["Level2dt"].Rows[i2][1] + "'", SqlCon))
+                                                using (SqlCmd = new SqlCommand("SELECT FirstName,ReferenceCode FROM UserInfo WHERE ReferenceBy='" + Referralds.Tables["Level2Info"].Rows[i2][1] + "'", SqlCon))
                                                 {
                                                     using (Sqlda = new SqlDataAdapter(SqlCmd))
                                                     {
@@ -913,12 +913,12 @@ namespace LotteryWebService
                                                         {
                                                             Referralds.Tables.Remove("ReferralInfo");
                                                             Level3dt = Referralds.Tables.Add("Level3Info");
-                                                            Sqlda.Fill(Referralds, "Level3dt");
+                                                            Sqlda.Fill(Referralds, "Level3Info");
                                                            
                                                             //check level 4
-                                                            for (int i3 = 0; i3 < Referralds.Tables["Level3dt"].Rows.Count; i3++)
+                                                            for (int i3 = 0; i3 < Referralds.Tables["Level3Info"].Rows.Count; i3++)
                                                             {
-                                                                using (SqlCmd = new SqlCommand("SELECT FirstName,ReferenceCode FROM UserInfo WHERE ReferenceBy='" + Referralds.Tables["Level3dt"].Rows[i3][1] + "'", SqlCon))
+                                                                using (SqlCmd = new SqlCommand("SELECT FirstName,ReferenceCode FROM UserInfo WHERE ReferenceBy='" + Referralds.Tables["Level3Info"].Rows[i3][1] + "'", SqlCon))
                                                                 {
                                                                     using (Sqlda = new SqlDataAdapter(SqlCmd))
                                                                     {
@@ -927,13 +927,13 @@ namespace LotteryWebService
                                                                         {
                                                                             Referralds.Tables.Remove("ReferralInfo");
                                                                             Level4dt = Referralds.Tables.Add("Level4Info");
-                                                                            Sqlda.Fill(Referralds, "Level4dt");
+                                                                            Sqlda.Fill(Referralds, "Level4Info");
                                                                            
 
                                                                             //check level 5
-                                                                            for (int i4 = 0; i4 < Referralds.Tables["Level4dt"].Rows.Count; i4++)
+                                                                            for (int i4 = 0; i4 < Referralds.Tables["Level4Info"].Rows.Count; i4++)
                                                                             {
-                                                                                using (SqlCmd = new SqlCommand("SELECT FirstName,ReferenceCode FROM UserInfo WHERE ReferenceBy='" + Referralds.Tables["Level4dt"].Rows[i4][1] + "'", SqlCon))
+                                                                                using (SqlCmd = new SqlCommand("SELECT FirstName,ReferenceCode FROM UserInfo WHERE ReferenceBy='" + Referralds.Tables["Level4Info"].Rows[i4][1] + "'", SqlCon))
                                                                                 {
                                                                                     using (Sqlda = new SqlDataAdapter(SqlCmd))
                                                                                     {
@@ -942,7 +942,7 @@ namespace LotteryWebService
                                                                                         {
                                                                                             Referralds.Tables.Remove("ReferralInfo");
                                                                                             Level5dt = Referralds.Tables.Add("Level5Info");
-                                                                                            Sqlda.Fill(Referralds, "Level5dt");
+                                                                                            Sqlda.Fill(Referralds, "Level5Info");
                                                                                             Referralds.Tables["Response"].Rows.Add("Level5");
                                                                                         }
                                                                                         else
