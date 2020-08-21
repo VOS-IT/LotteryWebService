@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using System.Web.Management;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Microsoft.SqlServer.Server;
 
 namespace LotteryWebService
 {
@@ -31,11 +32,13 @@ namespace LotteryWebService
         UserInfo ui;
         TicketInfo ti;
         AdminInfo ai;
+        AmountInfo amountInfo;
 
         private  DataSet Usersds;
         private  DataSet Ticketsds;
         private DataSet Storeds;
         private DataSet Referralds;
+        private DataSet Transactionds;
 
         private DataTable Responsedt;
         private DataTable Usersdt;
@@ -167,7 +170,44 @@ namespace LotteryWebService
             }
 
         }
+
+
         [WebMethod]
+        public WebServiceResponse VerifyPayment(string UserId,string Amount,string Desc,DateTime dt)
+        {
+
+            try
+            {
+                wsr = new WebServiceResponse();
+                //using (SqlCmd = new SqlCommand("Select UserId From UserLoginInfo where Userid='" + UserId + "' and Password='" + Password + "' and Status=1 ", SqlCon))
+                //{
+                //    SqlCon.Open();
+                //    var name = SqlCmd.ExecuteScalar();
+                //    if (name != null)
+                //    {
+                //       wsr.Status = name.ToString();
+                //    }
+                //}
+                //SqlCon.Close();
+                return wsr;
+
+            }
+            catch (Exception ex)
+            {
+               // wsr.Status = "0";
+                //wsr.Error = ex.Message;                
+                return wsr;
+            }
+            finally
+            {
+                if (SqlCon.State == ConnectionState.Open)
+                {
+                    SqlCon.Close();
+                }
+
+            }
+        }
+        [WebMethod]      
         public WebServiceResponse IsExistingUser(string UserId)
         {
             try
@@ -236,39 +276,37 @@ namespace LotteryWebService
 
         }
         [WebMethod]
-        public WebServiceResponse InsertTractionInfo()
+        public bool InsertTransactionInfo(string Id,string From,string To,DateTime dt,float Amount,string Desc)
         {
             try
             {
                 wsr = new WebServiceResponse();
-                //using (SqlCmd = new SqlCommand("insert into UserInfo values('" + FirstName + "','" + LastName + "','" + PhoneNumber + "','" + Email + "','" + Password + "','" + DOB + "','" + Country + "','" + IdType + "','" + IdNo + "','" + Address + "','" + State + "','" + City + "','" + Code + "')", SqlCon))
-                //{
-                //    SqlCon.Open();
-                //    int res = SqlCmd.ExecuteNonQuery();
+                using (SqlCmd = new SqlCommand("INSERT INTO TransactionInfo values('" + Id + "','" + From + "','" + To + "','" + dt.ToString("yyy/MM/dd HH:mm:ss") + "','" + Amount + "','" + Desc + "')", SqlCon))
+                {
+                    SqlCon.Open();
+                    int res = SqlCmd.ExecuteNonQuery();
+                    if (res == 1)
+                    {
+                        return true;                    
+                    }                    
+                    SqlCon.Close();
+                }
+                return true;
 
-                //    if (res == 1)
-                //    {
-                //        wsr.Status = "1";
-
-                //    }
-                //   
-
-                //}
-                SqlCon.Close();
-                return wsr;
 
             }
             catch (Exception ex)
             {
-                wsr.Status = "0";
-                wsr.Error = ex.Message;
+                //wsr.Status = "0";
+                //wsr.Error = ex.Message;
+                return false;
+            }
+            finally
+            {
                 if (SqlCon.State == ConnectionState.Open)
                 {
-                    SqlCon.Close();
-                    wsr.Error = ex.Message;
-
-                }                
-                return wsr;
+                    SqlCon.Close();                 
+                }                              
             }
 
         }
@@ -577,7 +615,42 @@ namespace LotteryWebService
                 
                 return ui;
             }
-        }     
+        }
+        [WebMethod]
+        public AmountInfo GetUserAmountInfo(string EmailId)
+        {
+            try
+            {
+                amountInfo = new AmountInfo();
+                SqlCon.Open();
+                using (SqlCmd = new SqlCommand("SELECT ReedemCost,AccountCost FROM UserInfo Where Email='" + EmailId + "'", SqlCon))
+                {
+                    Sqldr = SqlCmd.ExecuteReader();
+                    if (Sqldr.Read())
+                    {
+                        amountInfo.ReedemCost = float.Parse(Sqldr.GetValue(0).ToString());
+                        amountInfo.AccountCost = float.Parse(Sqldr.GetValue(0).ToString());
+                        amountInfo.Status = 1;
+                    }
+                    SqlCon.Close();                    
+                }
+                return amountInfo;
+            }
+            catch (Exception ex)
+            {
+                amountInfo.Status = 0;
+                amountInfo.Error = ex.Message;
+                return amountInfo;
+            }
+            finally
+            {
+                if (SqlCon.State == ConnectionState.Open)
+                {
+                    SqlCon.Close();
+
+                }
+            }
+        }
         [WebMethod]
         public DataSet GetUsersInfo()
         {
@@ -798,7 +871,6 @@ namespace LotteryWebService
             }
         }
 
-
         
         [WebMethod]
         public DataSet GetResultsInfo(string UserId)
@@ -871,7 +943,7 @@ namespace LotteryWebService
                         ReferenceCode = Sqldr.GetString(0);
                     }
                     SqlCon.Close();
-                    SqlCmd.Dispose();
+                    Sqldr.Close();
                 }
                
                 // chack level 1
@@ -1010,41 +1082,216 @@ namespace LotteryWebService
 
 
 
-        // Calculation
+        // ReferalAmountCalculation
 
         [WebMethod]
-        public WebServiceResponse ReferralBounceCalculate(string UserId, double Amount)
+        public WebServiceResponse ReferralBounceCalculation(string UserId, double Amount)
         {
-            DataSet Transactionds = new DataSet();
-            wsr = new WebServiceResponse();
-
+             
             try
             {
-
-                Transactionds = new DataSet();
-                DataTable TransactionInfo = Transactionds.Tables.Add("TransactionInfo");
-                DataTable Response = Transactionds.Tables.Add("Response");
-
-               
-                using (SqlCmd = new SqlCommand("SELECT *FROM UserInfo", SqlCon))
+                string ReferenceCode = null;                
+                int res;                
+                wsr = new WebServiceResponse();
+              
+                // Level 1 check
+                using (SqlCmd = new SqlCommand("SELECT ReferenceBy FROM UserInfo WHERE Email='" + UserId + "'", SqlCon))
                 {
-                    using (Sqlda = new SqlDataAdapter(SqlCmd))
+                    SqlCon.Open();
+                    Sqldr = SqlCmd.ExecuteReader();
+                    if (Sqldr.Read())
                     {
-                        Sqlda.Fill(Transactionds, "TransactionInfo");
-                        if (Transactionds.Tables["TransactionInfo"].Rows.Count > 0)
-                        {
-                            wsr.Status = "1";
-                           
-                        }                  
                         
-                        SqlCon.Close();
+                        if (!Sqldr.IsDBNull(Sqldr.GetOrdinal("ReferenceBy")))
+                        {
+                            ReferenceCode = Sqldr.GetString(0);
+                            using (SqlCmd = new SqlCommand("UPDATE UserInfo SET ReedemCost=ReedemCost+'" + (Amount * 10) / 100 + "' WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                            {
+                                Sqldr.Close();
+                                res = SqlCmd.ExecuteNonQuery();
+                                if (res == 1)
+                                {
+                                    using (SqlCmd = new SqlCommand("SELECT ReferenceBy FROM UserInfo WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                                    {
+                                        Sqldr.Close();
+                                        Sqldr = SqlCmd.ExecuteReader();
+                                        if (Sqldr.Read())
+                                        {
+                                            if (!Sqldr.IsDBNull(Sqldr.GetOrdinal("ReferenceBy")))
+                                            {
+                                                ReferenceCode = Sqldr.GetString(0);
+                                                using (SqlCmd = new SqlCommand("UPDATE UserInfo SET ReedemCost=ReedemCost+'" + (Amount * 5) / 100 + "' WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                                                {
+                                                    Sqldr.Close();
+                                                    res = SqlCmd.ExecuteNonQuery();
+                                                    if (res == 1)
+                                                    {
+                                                        using (SqlCmd = new SqlCommand("SELECT ReferenceBy FROM UserInfo WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                                                        {
+                                                            Sqldr.Close();
+                                                            Sqldr = SqlCmd.ExecuteReader();
+                                                            if (Sqldr.Read())
+                                                            {
+                                                                if (!Sqldr.IsDBNull(Sqldr.GetOrdinal("ReferenceBy")))
+                                                                {
+                                                                    ReferenceCode = Sqldr.GetString(0);
+                                                                    using (SqlCmd = new SqlCommand("UPDATE UserInfo SET ReedemCost=ReedemCost+'" + (Amount * 3) / 100 + "' WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                                                                    {
+                                                                        Sqldr.Close();
+                                                                        res = SqlCmd.ExecuteNonQuery();
+                                                                        if (res == 1)
+                                                                        {
+                                                                            using (SqlCmd = new SqlCommand("SELECT ReferenceBy FROM UserInfo WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                                                                            {
+                                                                                Sqldr.Close();
+                                                                                Sqldr = SqlCmd.ExecuteReader();
+                                                                                if (Sqldr.Read())
+                                                                                {
+                                                                                    if (!Sqldr.IsDBNull(Sqldr.GetOrdinal("ReferenceBy")))
+                                                                                    {
+                                                                                        ReferenceCode = Sqldr.GetString(0);
+                                                                                        using (SqlCmd = new SqlCommand("UPDATE UserInfo SET ReedemCost=ReedemCost+'" + (Amount * 2) / 100 + "' WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                                                                                        {
+                                                                                            Sqldr.Close();
+                                                                                            res = SqlCmd.ExecuteNonQuery();
+                                                                                            if (res == 1)
+                                                                                            {
+                                                                                                using (SqlCmd = new SqlCommand("SELECT ReferenceBy FROM UserInfo WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                                                                                                {
+                                                                                                    Sqldr.Close();
+                                                                                                    Sqldr = SqlCmd.ExecuteReader();
+                                                                                                    if (Sqldr.Read())
+                                                                                                    {
+                                                                                                        if (!Sqldr.IsDBNull(Sqldr.GetOrdinal("ReferenceBy")))
+                                                                                                        {
+                                                                                                            ReferenceCode = Sqldr.GetString(0);
+                                                                                                            using (SqlCmd = new SqlCommand("UPDATE UserInfo SET ReedemCost=ReedemCost+'" + (Amount * 1) / 100 + "' WHERE ReferenceCode='" + ReferenceCode + "'", SqlCon))
+                                                                                                            {
+                                                                                                                Sqldr.Close();
+                                                                                                                res = SqlCmd.ExecuteNonQuery();
+                                                                                                                if (res == 1)
+                                                                                                                {                                                                                                                                                                                                                                       
+                                                                                                                  using (SqlCmd = new SqlCommand("UPDATE MoneyInfo SET Amount=Amount+'" + (Amount * 79) / 100 + "' ", SqlCon))
+                                                                                                                  {
+                                                                                                                    Sqldr.Close();
+                                                                                                                    res = SqlCmd.ExecuteNonQuery();
+                                                                                                                     if (res == 1)
+                                                                                                                       {
+                                                                                                                          wsr.Status = "1";
+                                                                                                                        }
+                                                                                                                        SqlCon.Close();
+                                                                                                                   }
+                                                                                                                           
+                                                                                                                        
+                                                                                                                   
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                        else
+                                                                                                        {
+                                                                                                            using (SqlCmd = new SqlCommand("UPDATE MoneyInfo SET Amount=Amount+'" + (Amount * 80) / 100 + "' ", SqlCon))
+                                                                                                            {
+                                                                                                                Sqldr.Close();
+                                                                                                                res = SqlCmd.ExecuteNonQuery();
+                                                                                                                if (res == 1)
+                                                                                                                {
+                                                                                                                    wsr.Status = "1";
+                                                                                                                }
+                                                                                                                SqlCon.Close();
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                    else
+                                                                                    {
+                                                                                        using (SqlCmd = new SqlCommand("UPDATE MoneyInfo SET Amount=Amount+'" + (Amount * 82) / 100 + "' ", SqlCon))
+                                                                                        {
+                                                                                            Sqldr.Close();
+                                                                                            res = SqlCmd.ExecuteNonQuery();
+                                                                                            if (res == 1)
+                                                                                            {
+                                                                                                wsr.Status = "1";
+                                                                                            }
+                                                                                            SqlCon.Close();
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                                else
+                                                                {
+                                                                    using (SqlCmd = new SqlCommand("UPDATE MoneyInfo SET Amount=Amount+'" + (Amount * 85) / 100 + "' ", SqlCon))
+                                                                    {
+                                                                        Sqldr.Close();
+                                                                        res = SqlCmd.ExecuteNonQuery();
+                                                                        if (res == 1)
+                                                                        {
+                                                                            wsr.Status = "1";
+                                                                        }
+                                                                        SqlCon.Close();
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                using (SqlCmd = new SqlCommand("UPDATE MoneyInfo SET Amount=Amount+'" + (Amount * 90) / 100 + "' ", SqlCon))
+                                                {
+                                                    Sqldr.Close();
+                                                    res = SqlCmd.ExecuteNonQuery();
+                                                    if (res == 1)
+                                                    {
+                                                        wsr.Status = "1";
+                                                    }
+                                                    SqlCon.Close();
+                                                }
+                                            }
+                                            
+                                        }
+                                    }
+                                                
+                                }  
+                                
+                            }
+                            
+                        }
+                        else
+                        {
+                            Sqldr.Close();
+                            using (SqlCmd = new SqlCommand("UPDATE MoneyInfo SET Amount=Amount+'" + Amount + "' ", SqlCon))
+                            {                                
+                                res = SqlCmd.ExecuteNonQuery();
+                                if (res == 1)
+                                {
+                                   // if(InsertTransactionInfo("1",UserId,"Company",,Amount,)==true)
+                                   // {
+                                        wsr.Status = "1";
+                                   // }
+                                    
+                                }
+
+                                SqlCon.Close();
+                            }
+                        }
                     }
-                    return wsr;
-                }
+                    
+
+                }                
+
+                return wsr;
             }
             catch (Exception ex)
             {
                 wsr.Status = "0";
+                wsr.Error = ex.Message;
                 if (SqlCon.State == ConnectionState.Open)
                 {
                     SqlCon.Close();
