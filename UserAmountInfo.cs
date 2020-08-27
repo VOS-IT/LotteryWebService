@@ -5,7 +5,7 @@ using System.Web;
 
 namespace LotteryWebService
 {
-    public class AmountInfo
+    public class UserAmountInfo
     {
         public float ReedemCost { get; set; }
         public float AccountCost { get; set; }

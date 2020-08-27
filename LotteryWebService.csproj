@@ -76,7 +76,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AdminInfo.cs" />
-    <Compile Include="AmountInfo.cs" />
+    <Compile Include="UserAmountInfo.cs" />
     <Compile Include="DBService.asmx.cs">
       <DependentUpon>DBService.asmx</DependentUpon>
       <SubType>Component</SubType>
