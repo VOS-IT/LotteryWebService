@@ -18,20 +18,18 @@ namespace LotteryWebService
     // [System.Web.Script.Services.ScriptService]
     public class Mail : System.Web.Services.WebService
     {
-
-       private SqlConnection SqlCon;
+        private SqlConnection SqlCon;
         private SqlCommand SqlCmd;
-       private SqlDataReader Sqldr;
+        private SqlDataReader Sqldr;
         private WebServiceResponse wsr;
-
-
+        int res;
         public Mail()
         {
             SqlCon = new SqlConnection(ConfigurationManager.ConnectionStrings["LotteryDBCon"].ConnectionString);
         }
 
         [WebMethod]
-        public WebServiceResponse SendActivationEmail(string EmailId, string Name, string url,string Password)
+        public WebServiceResponse SendActivationEmail(string PhoneNumber,string EmailId, string Name, string Url,string Password)
         {
             try
             {
@@ -40,7 +38,7 @@ namespace LotteryWebService
                 using (MailMessage mm = new MailMessage("admin@vos-it.net", EmailId))
                 {
                     mm.IsBodyHtml = true;
-                    string newurl = url.Replace("Signup.aspx", "Activation.aspx?ActivationCode=" + activationCode);
+                    string newurl = Url.Replace("Signup.aspx", "Activation.aspx?ActivationCode=" + activationCode +"&Id=" + EmailId);
                     mm.Subject = "Account Activation";
                     string body = "Hello " + Name + ",";
                     body += "<br /><br />Please click the following link to activate your account";
@@ -51,25 +49,30 @@ namespace LotteryWebService
                     SmtpClient smtp = new SmtpClient();
                     smtp.Host = "mail.vos-it.net";
                     smtp.EnableSsl = true;
+                    System.Net.ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                     NetworkCredential NetworkCred = new NetworkCredential("admin@vos-it.net", "REfwM6S?GisC");
                     smtp.UseDefaultCredentials = true;
                     smtp.Credentials = NetworkCred;
                     smtp.Port = 587;
                     smtp.Send(mm);
                 }
-
-                using (SqlCmd = new SqlCommand("INSERT INTO UserLoginInfo VALUES('" + EmailId + "','" + Password + "','0','" + activationCode + "')", SqlCon))
+                using (SqlCmd = new SqlCommand("INSERT INTO Activation VALUES('" + EmailId + "','" + activationCode + "')", SqlCon))
                 {
                     SqlCon.Open();
-                    int res= SqlCmd.ExecuteNonQuery();
-                    if(res==1)
+                    res = SqlCmd.ExecuteNonQuery();
+                    if (res == 1)
                     {
-                        wsr.Status = "1";
-
-                    }                   
-                    SqlCon.Close();
+                        using (SqlCmd = new SqlCommand("INSERT INTO UserLoginInfo VALUES('"+ PhoneNumber +"','" + EmailId + "','" + Password + "','0')", SqlCon))
+                        {
+                            res = SqlCmd.ExecuteNonQuery();
+                            if (res == 1)
+                            {
+                                wsr.Status = "1";
+                            }
+                            SqlCon.Close();
+                        }
+                    }
                 }
-
                 return wsr;
             }
             catch (Exception ex)
@@ -83,14 +86,12 @@ namespace LotteryWebService
                 if (SqlCon.State == ConnectionState.Open)
                 {
                     SqlCon.Close();                   
-
                 }
             }
-
         }
 
         [WebMethod]
-        public WebServiceResponse SendForgetEmail(string EmailId,string url)
+        public WebServiceResponse SendForgetEmail(string EmailId,string Url)
         {
             try
             {
@@ -98,7 +99,6 @@ namespace LotteryWebService
                 {
                     SqlCon.Open();
                     Sqldr = SqlCmd.ExecuteReader();
-
                     if (Sqldr.Read())
                     {
                         SqlCon.Close();                       
@@ -109,7 +109,7 @@ namespace LotteryWebService
                         {
                             string body;
                             mm.IsBodyHtml = true;
-                            string newurl = url.Replace("Reset.aspx", "Reset.aspx?ResetCode=" + PasswordResetCode);
+                            string newurl = Url.Replace("Reset.aspx", "Reset.aspx?ResetCode=" + PasswordResetCode+"&Id="+EmailId); 
                             mm.Subject = "Password Reset";
                             // string body = "Hello " + Name + ",";
                             body = "<br /><br />Please click the following link to Reset your account Password";
@@ -126,7 +126,6 @@ namespace LotteryWebService
                             smtp.Port = 587;
                             smtp.Send(mm);
                         }
-
                         using (SqlCmd = new SqlCommand("INSERT INTO ResetPassword VALUES('" + PasswordResetCode + "','" + EmailId + "','" + dt.ToString("yyy/MM/dd HH:mm:ss") + "')", SqlCon))
                         {
                             SqlCon.Open();
@@ -137,16 +136,13 @@ namespace LotteryWebService
                             }
                             SqlCon.Close();
                         }
-
                         return wsr;
-
                     }
                     else
                     {                        
                         return wsr;
                     }
-                }
-                
+                }                
             }
             catch (Exception ex)
             {
@@ -162,52 +158,70 @@ namespace LotteryWebService
 
                 }
             }
-
         }
         [WebMethod]
-        public WebServiceResponse VerifyActivationEmail(string activationCode)
+        public WebServiceResponse VerifyActivationEmail(string ActivationCode,string EmailId)
         {
             try
             {
                 wsr = new WebServiceResponse();
-                using (SqlCommand cmd = new SqlCommand("SELECT ActivationCode FROM UserLoginInfo WHERE ActivationCode = '" + activationCode + "' and Status='0' ", SqlCon))
+                using (SqlCommand cmd = new SqlCommand("DELETE ActivationCode FROM Activation WHERE ActivationCode = '" + ActivationCode + "' and Status='0' ", SqlCon))
                 {
                     SqlCon.Open();
                     Sqldr = cmd.ExecuteReader();
                     if (Sqldr.Read())
                     {
                         Sqldr.Close();               
-                        using (SqlCmd = new SqlCommand("UPDATE UserLoginInfo SET Status='1' WHERE ActivationCode='" + activationCode + "'",SqlCon)) 
+                        using (SqlCmd = new SqlCommand("UPDATE UserLoginInfo SET Status='1' WHERE EmailId='" + EmailId + "'",SqlCon)) 
                         {
                             int rel = SqlCmd.ExecuteNonQuery();
                             if (rel == 1)
                             {
                                 SqlCon.Close();
-                                wsr.Status = "1";
-                                
+                                wsr.Status = "1";                                
                             }
-                            else
-                            {
-                                SqlCon.Close();
-                                wsr.Status = "0";
-                            }
-                           
                         }
                     }
-                    else
+                     return wsr; 
+                }
+            }
+            catch (Exception ex)
+            {                 
+                wsr.Status = "0";
+                wsr.Error = ex.Message;               
+                return wsr;
+            }
+            finally
+            {
+                if (SqlCon.State == ConnectionState.Open)
+                {
+                    SqlCon.Close();
+                }
+            }
+        }
+
+        [WebMethod]
+        public WebServiceResponse VerifyResetPassword(string ResetCode,string EmailId)
+        {
+            try
+            {
+                wsr = new WebServiceResponse();
+                using (SqlCommand cmd = new SqlCommand("DELETE FROM ResetPassword WHERE ResetCode = '" + ResetCode + "' and EmailId='" + EmailId + "' ", SqlCon))
+                {
+                    SqlCon.Open();
+                    int res=cmd.ExecuteNonQuery();
+                    if (res==1)
                     {
-                        Sqldr.Close();
-                        wsr.Status = "0";
-                    }
-                    return wsr;                   
-                    
+                        SqlCon.Close();
+                        wsr.Status = "1";  
+                    } 
+                    return wsr;
                 }
             }
             catch (Exception ex)
             {
-                
-                    SqlCon.Close();                  
-                    wsr.Error = ex.Message;               
+                wsr.Status = "0";
+                wsr.Error = ex.Message;
                 return wsr;
             }
             finally
@@ -218,8 +232,6 @@ namespace LotteryWebService
 
                 }
             }
-
-
 
         }
     }

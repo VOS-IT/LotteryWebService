@@ -18,8 +18,7 @@ namespace LotteryWebService
     /// Summary description for DBService
     /// </summary>
     [WebService(Namespace = "http://tempuri.org/")]
-    [WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]
-    //[System.Net.ServicePointManager]::SecurityProtocol=[System.Net.SecurityProtocolType]::Tls12;
+    [WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]    
     [System.ComponentModel.ToolboxItem(false)]
     // To allow this Web Service to be called from script, using ASP.NET AJAX, uncomment the following line. 
      [System.Web.Script.Services.ScriptService]
@@ -32,20 +31,20 @@ namespace LotteryWebService
         private SqlDataReader Sqldr;
         private SqlDataAdapter Sqlda;
 
-        WebServiceResponse wsr;
-        UserInfo ui;
-        TicketInfo ti;
-        AdminInfo ai;
-        UserAmountInfo uai;
+        private WebServiceResponse wsr;
+        private UserInfo ui;
+        private TicketInfo ti;
+        private AdminInfo ai;
+        private UserAmountInfo uai;
 
         private DataSet Usersds;
         private DataSet Ticketsds;
         private DataSet  Storeds;
         private DataSet  Referralds;
         private DataSet  Clubds;
-        private DataSet GamesHistoryInfo;
-        private DataTable Responsedt;
+        private DataSet  GamesHistoryds;
 
+        private DataTable Responsedt;
         private DataTable Usersdt;
         private DataTable Ticketsdt;
         private DataTable Storedt;
@@ -68,10 +67,10 @@ namespace LotteryWebService
 
         }
         [WebMethod]
-        public string  GenerateReferencecode(string UserId,string DOB)
+        public string  GenerateReferencecode(string EmailId,string DOB)
 
         {
-            String ReferenceCode=UserId.Substring(0,2);
+            String ReferenceCode= EmailId.Substring(0,2);
             try
             {
                 bool status = true;
@@ -232,26 +231,22 @@ namespace LotteryWebService
             }
         }
         [WebMethod]      
-        public WebServiceResponse IsExistingUser(string UserId)
+        public WebServiceResponse IsExistingUser(string EmailId)
         {
             try
             {
                 wsr = new WebServiceResponse();
-                using (SqlCmd = new SqlCommand("Select UserId From UserLoginInfo where UserId='" + UserId + "'  ", SqlCon))
+                using (SqlCmd = new SqlCommand("SELECT UserId FROM UserLoginInfo WHERE EmailId='" + EmailId + "'", SqlCon))
                 {
                     SqlCon.Open();
                     var name = SqlCmd.ExecuteScalar();
-
                     if (name != null)
                     {
                         wsr.Status = "1";
-
                     }
                     SqlCon.Close();
-                }
-               
+                }               
                 return wsr;
-
             }
             catch (Exception ex)
             {
@@ -264,19 +259,18 @@ namespace LotteryWebService
                 if (SqlCon.State == ConnectionState.Open)
                 {
                     SqlCon.Close();
-
                 }
             }
 
         }
         [WebMethod]
-        public WebServiceResponse InsertUserInfo(string FirstName, string LastName, string PhoneNumber, string Email,string Password, string DOB, string Country, string IdType, string IdNo, string Address, string State, string City, string Code,string ReferralBy)
+        public WebServiceResponse InsertUserInfo(string FirstName, string LastName, string PhoneNumber, string EmailId,string Password, string DOB, string Country, string IdType, string IdNo, string Address, string State, string City, string ZipCode,string ReferralBy)
         {
             try
             {
-                string ReferenceCode= GenerateReferencecode(Email,DOB);
+                string ReferenceCode= GenerateReferencecode(EmailId,DOB);
                 wsr = new WebServiceResponse();
-                using (SqlCmd = new SqlCommand("INSERT INTO UserInfo(FirstName,LastName,PhoneNumber,Email,Password,DateOfBirth,Nationality,IDType,IdNo,Address,State,City,Code,ReferenceCode,ReferenceBy) VAULES('" + FirstName + "','" + LastName + "','" + PhoneNumber + "','" + Email + "','" + Password + "','" + DOB + "','" + Country + "','" + IdType + "','" + IdNo + "','" + Address + "','" + State + "','" + City + "','" + Code + "','"+ReferenceCode+"','"+ReferralBy+"')", SqlCon))
+                using (SqlCmd = new SqlCommand("INSERT INTO UserInfo(FirstName,LastName,PhoneNumber,EmailId,Password,DateOfBirth,Nationality,IDType,IdNo,Address,State,City,ZipCode,ReferenceCode,ReferenceBy,ReedemCost,AccountCost) VALUES('" + FirstName + "','" + LastName + "','" + PhoneNumber + "','" + EmailId + "','" + Password + "','" + DOB + "','" + Country + "','" + IdType + "','" + IdNo + "','" + Address + "','" + State + "','" + City + "','" + ZipCode + "','"+ReferenceCode+"','"+ReferralBy+"','0','0')", SqlCon))
                 {
                     SqlCon.Open();
                     int res = SqlCmd.ExecuteNonQuery();
@@ -441,7 +435,37 @@ namespace LotteryWebService
             }
 
         }
+        [WebMethod]
+        public WebServiceResponse InsertMessageInfo(string Name, string Email,string Subject ,string Message, DateTime DisplayDate)
+        {
+            try
+            {
+                wsr = new WebServiceResponse();
+                using (SqlCmd = new SqlCommand("INSERT INTO Message values('" + Name + "','" + Email + "','" + Subject + "','" + Message + "','" + Convert.ToDateTime(DisplayDate).ToString("yyy/MM/dd HH:mm:ss") + "')", SqlCon))
+                {
+                    SqlCon.Open();
+                    int res = SqlCmd.ExecuteNonQuery();
+                    if (res == 1)
+                    {
+                        wsr.Status = "1";
+                    }
+                }
+                SqlCon.Close();
+                return wsr;
+            }
+            catch (Exception ex)
+            {
+                wsr.Status = "0";
+                wsr.Error = ex.Message;
+                if (SqlCon.State == ConnectionState.Open)
+                {
+                    SqlCon.Close();
+                }
+                return wsr;
+            }
 
+
+        }
         //Update Methods
 
         [WebMethod]
@@ -503,20 +527,116 @@ namespace LotteryWebService
             {
                  wsr.Status="0";
                  wsr.Error = ex.Message;
+                return wsr;
+            }
+            finally
+            {
                 if (SqlCon.State == ConnectionState.Open)
                 {
                     SqlCon.Close();
-                    
-
-                }               
-
-                return wsr;
+                }
             }
-
 
         }
 
+        [WebMethod]
+        public WebServiceResponse UpdateUserPassword(string EmailId, string Password)
+        {
+            try
+            {
+                wsr = new WebServiceResponse();
+                using (SqlCmd = new SqlCommand("UPDATE UserLoginInfo  SET Password='" + Password + "' WHERE EmailId='" + EmailId + "' ", SqlCon))
+                {
+                    SqlCon.Open();
+                    int res = SqlCmd.ExecuteNonQuery();
+                    if (res == 1)                 
+                    {
+                        wsr.Status = "1";
+                    }
+                }
+                SqlCon.Close();
+                return wsr;
 
+            }
+            catch (Exception ex)
+            {
+                wsr.Status = "0";
+                wsr.Error = ex.Message;
+                return wsr;
+            }
+            finally
+            {
+                if (SqlCon.State == ConnectionState.Open)
+                {
+                    SqlCon.Close();
+                }
+            }
+
+        }
+
+        [WebMethod]
+        public WebServiceResponse InsertCartInfo(string ProductName, string Qty, string Price, string EmailId,string[] Numbers)
+        {
+            try
+            {
+                int no = Numbers.Length;
+                wsr = new WebServiceResponse();
+                if(no==1)
+                {
+                    using (SqlCmd = new SqlCommand("INSERT INTO CartInfo(ProductName,Qty,Price,EmailId,Num1) VALUES('" + ProductName + "'  ,'" + Qty + "','" + Price + "','" + EmailId + "','" + Numbers[0] + "')", SqlCon))
+                    {
+                        SqlCon.Open();
+                        int res = SqlCmd.ExecuteNonQuery();
+                        if (res == 1)
+                        {
+                            wsr.Status = "1";
+                        }
+                    }
+                    SqlCon.Close();
+                }
+                if (no == 1)
+                {
+                    using (SqlCmd = new SqlCommand("INSERT INTO CartInfo(ProductName,Qty,Price,EmailId,Num1) VALUES('" + ProductName + "'  ,'" + Qty + "','" + Price + "','" + EmailId + "','" + Numbers[0] + "')", SqlCon))
+                    {
+                        SqlCon.Open();
+                        int res = SqlCmd.ExecuteNonQuery();
+                        if (res == 1)
+                        {
+                            wsr.Status = "1";
+                        }
+                    }
+                    SqlCon.Close();
+                }
+                if (no == 1)
+                {
+                    using (SqlCmd = new SqlCommand("INSERT INTO CartInfo(ProductName,Qty,Price,EmailId,Num1) VALUES('" + ProductName + "'  ,'" + Qty + "','" + Price + "','" + EmailId + "','" + Numbers[0] + "')", SqlCon))
+                    {
+                        SqlCon.Open();
+                        int res = SqlCmd.ExecuteNonQuery();
+                        if (res == 1)
+                        {
+                            wsr.Status = "1";
+                        }
+                    }
+                    SqlCon.Close();
+                }
+
+                return wsr;
+            }
+            catch (Exception ex)
+            {
+                wsr.Status = "0";
+                wsr.Error = ex.Message;                
+                return wsr;
+            }
+            finally
+            {
+                if (SqlCon.State == ConnectionState.Open)
+                {
+                    SqlCon.Close();
+                }
+            }
+        }
 
 
         //Get Info Methods
@@ -712,8 +832,7 @@ namespace LotteryWebService
         }
         [WebMethod]
         public DataSet GetUsersInfo()
-        {
-              
+        {            
 
             try
             {
@@ -984,22 +1103,22 @@ namespace LotteryWebService
 
             try
             {
-                GamesHistoryInfo = new DataSet();
-                GamesHistorydt = GamesHistoryInfo.Tables.Add("GamesHistoryInfo");
-                Responsedt = GamesHistoryInfo.Tables.Add("Response");
-                GamesHistoryInfo.Tables["Response"].Columns.Add("Status", typeof(string));
-                GamesHistoryInfo.Tables["Response"].Columns.Add("Error", typeof(string));
-                using (SqlCmd = new SqlCommand("SELECT UserName,Code,GameName,Reward,GameId FROM GamesHistory", SqlCon))
+                GamesHistoryds = new DataSet();
+                GamesHistorydt = GamesHistoryds.Tables.Add("GamesHistoryInfo");
+                Responsedt = GamesHistoryds.Tables.Add("Response");
+                GamesHistoryds.Tables["Response"].Columns.Add("Status", typeof(string));
+                GamesHistoryds.Tables["Response"].Columns.Add("Error", typeof(string));
+                using (SqlCmd = new SqlCommand("SELECT UserName as Winner,GameName as Game,Reward FROM GamesHistory", SqlCon))
                 {
                     using (Sqlda = new SqlDataAdapter(SqlCmd))
                     {
-                        Sqlda.Fill(GamesHistoryInfo, "GamesHistoryInfo");
-                        if (GamesHistoryInfo.Tables["GamesHistoryInfo"].Rows.Count > 0)
+                        Sqlda.Fill(GamesHistoryds, "GamesHistoryInfo");
+                        if (GamesHistoryds.Tables["GamesHistoryInfo"].Rows.Count > 0)
                         {
-                            GamesHistoryInfo.Tables["Response"].Rows.Add("1", "");
+                            GamesHistoryds.Tables["Response"].Rows.Add("1", "");
                         }
                         SqlCon.Close();
-                        return GamesHistoryInfo;
+                        return GamesHistoryds;
                     }
 
                 }
@@ -1007,7 +1126,7 @@ namespace LotteryWebService
             catch (Exception ex)
             {
                 Storeds.Tables["Respone"].Rows.Add("0", ex.Message);                
-                return GamesHistoryInfo;
+                return GamesHistoryds;
             }
             finally
             {
@@ -1097,8 +1216,7 @@ namespace LotteryWebService
                                                                         {
                                                                             Referralds.Tables.Remove("ReferralInfo");
                                                                             Level4dt = Referralds.Tables.Add("Level4Info");
-                                                                            Sqlda.Fill(Referralds, "Level4Info");
-                                                                           
+                                                                            Sqlda.Fill(Referralds, "Level4Info");                                                                           
 
                                                                             //check level 5
                                                                             for (int i4 = 0; i4 < Referralds.Tables["Level4Info"].Rows.Count; i4++)
@@ -1150,30 +1268,30 @@ namespace LotteryWebService
 
                                     }
                                 }
-                            }                           
-                           
+                            }                        
                         }
                         else
                         {
                             Referralds.Tables["Response"].Rows.Add("Level0");
                         }                       
                     }
-
-                    Referralds.Tables.Remove("ReferralInfo");
+                   // Referralds.Tables.Remove("ReferralInfo");
                     return Referralds;
                 }
             }
             catch (Exception ex)
-            {
-               
+            {               
                 Referralds.Tables["Response"].Columns.Add("Error", typeof(string));
-                Referralds.Tables["Respone"].Rows.Add("0",ex.Message);
-                if (SqlCon.State == ConnectionState.Open)
-                {
-                    SqlCon.Close();
-                   
-                }                
+                Referralds.Tables["Respone"].Rows.Add("0",ex.Message);                         
                 return Referralds;
+            }
+            finally
+            {
+               if (SqlCon.State == ConnectionState.Open)
+               {
+                    SqlCon.Close();
+
+               }
             }
         }
 
