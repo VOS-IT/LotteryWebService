@@ -7,7 +7,7 @@ namespace LotteryWebService
 {
     public class UserAmountInfo
     {
-        public float ReedemCost { get; set; }
+        public float RedeemCost { get; set; }
         public float AccountCost { get; set; }
         public int Status { get; set; }
         public string Error { get; set; }

@@ -26,6 +26,8 @@ namespace LotteryWebService
 
     public class DBService : System.Web.Services.WebService
     {
+      
+
         private readonly SqlConnection SqlCon;
         private SqlCommand SqlCmd;
         private SqlDataReader Sqldr;
@@ -67,8 +69,7 @@ namespace LotteryWebService
 
         }
         [WebMethod]
-        public string  GenerateReferencecode(string EmailId,string DOB)
-
+        public string  GenerateReferencecode(string EmailId,string PhoneNumber)
         {
             String ReferenceCode= EmailId.Substring(0,2);
             try
@@ -78,7 +79,7 @@ namespace LotteryWebService
                 {
                     Random rand = new Random();
                     string num = rand.Next(1000, 9999).ToString();
-                    ReferenceCode = ReferenceCode + num.Substring(0, 2) + DOB.Substring(DOB.Length - 2) + num.Substring(2, 2);
+                    ReferenceCode = ReferenceCode + num.Substring(0, 2) + PhoneNumber.Substring(PhoneNumber.Length - 2) + num.Substring(2, 2);
                     using (SqlCmd = new SqlCommand("Select ReferenceCode From UserInfo where ReferenceCode='" + ReferenceCode + "'  ", SqlCon))
                     {
                         SqlCon.Open();
@@ -88,12 +89,10 @@ namespace LotteryWebService
                             status = false;
                         }
                         SqlCon.Close();
-                    }             
+                    }            
                      
                 }
                 return ReferenceCode;
-
-
             }
             catch
             {
@@ -111,21 +110,20 @@ namespace LotteryWebService
             
         }
         [WebMethod]
-        public WebServiceResponse VerifyUserLogin(string UserId, string Password)
+        public WebServiceResponse VerifyUserLogin(string EmailId, string Password)
         {
 
             try
             {
                 wsr = new WebServiceResponse();
-                using (SqlCmd = new SqlCommand("Select UserId From UserLoginInfo where EmailId='" + UserId + "' and Password='" + Password + "' and Status=1 ", SqlCon))
+                using (SqlCmd = new SqlCommand("Select EmailId From UserLoginInfo where EmailId='" + EmailId + "' and Password='" + Password + "' and Status=1 ", SqlCon))
                 {
                     SqlCon.Open();
                     Sqldr = SqlCmd.ExecuteReader();
-
                     if (Sqldr.Read())
                     {
                         wsr.Status = Sqldr.GetString(0);
-                    }                              
+                    }                          
 
                 }
                 SqlCon.Close();
@@ -140,7 +138,6 @@ namespace LotteryWebService
             }
             finally
             {
-
                 if (SqlCon.State == ConnectionState.Open)
                 {
                     SqlCon.Close();
@@ -231,18 +228,27 @@ namespace LotteryWebService
             }
         }
         [WebMethod]      
-        public WebServiceResponse IsExistingUser(string EmailId)
+        public WebServiceResponse IsExistingUser(string EmailId,string PhoneNumber)
         {
             try
             {
+                
                 wsr = new WebServiceResponse();
-                using (SqlCmd = new SqlCommand("SELECT UserId FROM UserLoginInfo WHERE EmailId='" + EmailId + "'", SqlCon))
+                using (SqlCmd = new SqlCommand("SELECT EmailId FROM UserInfo WHERE EmailId='" + EmailId + "'", SqlCon))
                 {
                     SqlCon.Open();
-                    var name = SqlCmd.ExecuteScalar();
-                    if (name != null)
+                    var Val = SqlCmd.ExecuteScalar();
+                    if (Val == null)
                     {
-                        wsr.Status = "1";
+                        using (SqlCmd = new SqlCommand("SELECT PhoneNumber FROM UserInfo WHERE PhoneNumber='" + PhoneNumber + "'", SqlCon))
+                        {
+                            SqlCmd.Dispose();
+                            Val = SqlCmd.ExecuteScalar();
+                            if (Val == null)
+                            {
+                                wsr.Status = "1";
+                            }
+                        }
                     }
                     SqlCon.Close();
                 }               
@@ -264,13 +270,13 @@ namespace LotteryWebService
 
         }
         [WebMethod]
-        public WebServiceResponse InsertUserInfo(string FirstName, string LastName, string PhoneNumber, string EmailId,string Password, string DOB, string Country, string IdType, string IdNo, string Address, string State, string City, string ZipCode,string ReferralBy)
+        public WebServiceResponse InsertUserInfo(string FirstName, string LastName, string PhoneNumber, string EmailId,string Password,string ReferralBy)
         {
             try
             {
-                string ReferenceCode= GenerateReferencecode(EmailId,DOB);
+                string ReferenceCode= GenerateReferencecode(EmailId,PhoneNumber);
                 wsr = new WebServiceResponse();
-                using (SqlCmd = new SqlCommand("INSERT INTO UserInfo(FirstName,LastName,PhoneNumber,EmailId,Password,DateOfBirth,Nationality,IDType,IdNo,Address,State,City,ZipCode,ReferenceCode,ReferenceBy,ReedemCost,AccountCost) VALUES('" + FirstName + "','" + LastName + "','" + PhoneNumber + "','" + EmailId + "','" + Password + "','" + DOB + "','" + Country + "','" + IdType + "','" + IdNo + "','" + Address + "','" + State + "','" + City + "','" + ZipCode + "','"+ReferenceCode+"','"+ReferralBy+"','0','0')", SqlCon))
+                using (SqlCmd = new SqlCommand("INSERT INTO UserInfo(FirstName,LastName,PhoneNumber,EmailId,Password,ReferenceCode,ReferenceBy,RedeemCost,AccountCost) VALUES('" + FirstName + "','" + LastName + "','" + PhoneNumber + "','" + EmailId + "','" + Password + "','"+ReferenceCode+"','"+ReferralBy+"','0','0')", SqlCon))
                 {
                     SqlCon.Open();
                     int res = SqlCmd.ExecuteNonQuery();
@@ -331,20 +337,19 @@ namespace LotteryWebService
 
         }
         [WebMethod]
-        public WebServiceResponse InsertTicketInfo(string TicketNo,int TicketPrice,int PriceAmount,DateTime DisplayDate,DateTime CloseDate,DateTime DrawDate,string Status)
+        public WebServiceResponse InsertTicketInfo(string TicketNo,int TicketPrice,int PriceAmount,DateTime DisplayDate,DateTime CloseDate,DateTime DrawDate,string Status,string Type)
         {
             try
             {
                 wsr = new WebServiceResponse();
-                using (SqlCmd = new SqlCommand("INSERT into TicketInfo(TicketNo,TicketPrice,PriceAmount,DisplayDate,CloseDate,DrawDate,Status) values('" + TicketNo + "','" + TicketPrice + "','" + PriceAmount + "','" + Convert.ToDateTime(DisplayDate).ToString("yyy/MM/dd HH:mm:ss") + "','" + Convert.ToDateTime(CloseDate).ToString("yyy/MM/dd HH:mm:ss") + "','" + Convert.ToDateTime(DrawDate).ToString("yyy/MM/dd HH:mm:ss") + "','" + Status + "')", SqlCon))
+                using (SqlCmd = new SqlCommand("INSERT into TicketInfo(TicketNo,TicketPrice,PriceAmount,DisplayDate,CloseDate,DrawDate,Status,Type) values('" + TicketNo + "','" + TicketPrice + "','" + PriceAmount + "','" + Convert.ToDateTime(DisplayDate).ToString("yyy/MM/dd HH:mm:ss") + "','" + Convert.ToDateTime(CloseDate).ToString("yyy/MM/dd HH:mm:ss") + "','" + Convert.ToDateTime(DrawDate).ToString("yyy/MM/dd HH:mm:ss") + "','" + Status + "','" + Type + "')", SqlCon))
                 {
                     SqlCon.Open();
                     int res = SqlCmd.ExecuteNonQuery();
                     if (res == 1)
                     {                       
                         wsr.Status = "1";
-                    }                    
-                   
+                    }  
                 }
                 SqlCon.Close();
                 return wsr;
@@ -356,8 +361,7 @@ namespace LotteryWebService
                 wsr.Error = ex.Message;
                 if (SqlCon.State == ConnectionState.Open)
                 {
-                    SqlCon.Close();                   
-
+                    SqlCon.Close();                 
                 }                
 
                 return wsr;
@@ -436,12 +440,12 @@ namespace LotteryWebService
 
         }
         [WebMethod]
-        public WebServiceResponse InsertMessageInfo(string Name, string Email,string Subject ,string Message, DateTime DisplayDate)
+        public WebServiceResponse InsertMessageInfo(string Name, string EmailId,string Subject ,string Message, DateTime DisplayDate)
         {
             try
             {
                 wsr = new WebServiceResponse();
-                using (SqlCmd = new SqlCommand("INSERT INTO Message values('" + Name + "','" + Email + "','" + Subject + "','" + Message + "','" + Convert.ToDateTime(DisplayDate).ToString("yyy/MM/dd HH:mm:ss") + "')", SqlCon))
+                using (SqlCmd = new SqlCommand("INSERT INTO Message values('" + Name + "','" + EmailId + "','" + Subject + "','" + Message + "','" + Convert.ToDateTime(DisplayDate).ToString("yyy/MM/dd HH:mm:ss") + "')", SqlCon))
                 {
                     SqlCon.Open();
                     int res = SqlCmd.ExecuteNonQuery();
@@ -469,12 +473,12 @@ namespace LotteryWebService
         //Update Methods
 
         [WebMethod]
-        public WebServiceResponse UpdateUserInfo(string FirstName, string LastName, string PhoneNumber, string Email,  string DOB, string Country, string IdType, string IdNo, string Address, string State, string City, string Code)
+        public WebServiceResponse UpdateUserInfo(string FirstName, string LastName, string PhoneNumber, string EmailId,  string DOB, string Country, string IdType, string IdNo, string Address, string State, string City, string Code)
         {
             try
             {
                 wsr = new WebServiceResponse();
-                using (SqlCmd = new SqlCommand("UPDATE UserInfo SET FirstName='" + FirstName + "',LastName='" + LastName + "',PhoneNumber='" + PhoneNumber + "',Email='" + Email + "',DateOfBirth='" + DOB + "',Nationality='" + Country + "',IDType='" + IdType + "',IdNo='" + IdNo + "',Address='" + Address + "',State='" + State + "',City='" + City + "',Code='" + Code + "' WHERE PhoneNumber='" + PhoneNumber + "'", SqlCon))
+                using (SqlCmd = new SqlCommand("UPDATE UserInfo SET FirstName='" + FirstName + "',LastName='" + LastName + "',PhoneNumber='" + PhoneNumber + "',EmailId='" + EmailId + "',DateOfBirth='" + DOB + "',Nationality='" + Country + "',IDType='" + IdType + "',IdNo='" + IdNo + "',Address='" + Address + "',State='" + State + "',City='" + City + "',Code='" + Code + "' WHERE PhoneNumber='" + PhoneNumber + "'", SqlCon))
                 {
                     SqlCon.Open();
                     int res = SqlCmd.ExecuteNonQuery();
@@ -756,7 +760,7 @@ namespace LotteryWebService
             {
                 ui = new UserInfo();
                 SqlCon.Open();
-                using (SqlCmd = new SqlCommand("SELECT *FROM UserInfo Where Email='"+EmailId+"'", SqlCon))
+                using (SqlCmd = new SqlCommand("SELECT FirstName,LastName,PhoneNumber,EmailId,ReferenceCode FROM UserInfo WHERE EmailId='" + EmailId+"'", SqlCon))
                 {
                     Sqldr = SqlCmd.ExecuteReader();
                     if (Sqldr.Read())
@@ -765,16 +769,16 @@ namespace LotteryWebService
                         ui.FirstName = Sqldr.GetValue(0).ToString();
                         ui.LastName = Sqldr.GetValue(1).ToString();
                         ui.PhoneNumber = Sqldr.GetValue(2).ToString();
-                        ui.Email = Sqldr.GetValue(3).ToString();
-                        ui.Password = Sqldr.GetValue(4).ToString();
-                        ui.DateOfBirth = Sqldr.GetValue(5).ToString();
-                        ui.Nationality = Sqldr.GetValue(6).ToString();
-                        ui.IDType = Sqldr.GetValue(7).ToString();
-                        ui.IdNo = Sqldr.GetValue(8).ToString();
-                        ui.Address = Sqldr.GetValue(9).ToString();
-                        ui.State = Sqldr.GetValue(10).ToString();
-                        ui.City = Sqldr.GetValue(11).ToString();
-                        ui.Code = Sqldr.GetValue(12).ToString();
+                        ui.EmailId = Sqldr.GetValue(3).ToString();                      
+                        //ui.Password = Sqldr.GetValue(4).ToString();
+                        //ui.DateOfBirth = Sqldr.GetValue(5).ToString();
+                        //ui.Nationality = Sqldr.GetValue(6).ToString();
+                        //ui.IDType = Sqldr.GetValue(7).ToString();
+                        //ui.IdNo = Sqldr.GetValue(8).ToString();
+                        //ui.Address = Sqldr.GetValue(9).ToString();
+                        //ui.State = Sqldr.GetValue(10).ToString();
+                        //ui.City = Sqldr.GetValue(11).ToString();
+                        ui.ReferralCode = Sqldr.GetValue(4).ToString();
                         ui.Status = 1;
                     }
                     
@@ -785,14 +789,17 @@ namespace LotteryWebService
             catch (Exception ex)
             {
                 ui.Status = 0;
-                ui.Error = ex.Message;
-                if (SqlCon.State == ConnectionState.Open)
-                {
-                    SqlCon.Close();                   
-
-                }
+                ui.Error = ex.Message;             
                 
                 return ui;
+            }
+            finally
+            {
+                if (SqlCon.State == ConnectionState.Open)
+                {
+                    SqlCon.Close();
+
+                }
             }
         }
         [WebMethod]
@@ -802,12 +809,12 @@ namespace LotteryWebService
             {
                 uai = new UserAmountInfo();
                 SqlCon.Open();
-                using (SqlCmd = new SqlCommand("SELECT ReedemCost,AccountCost FROM UserInfo Where Email='" + EmailId + "'", SqlCon))
+                using (SqlCmd = new SqlCommand("SELECT RedeemCost,AccountCost FROM UserInfo WHERE EmailId='" + EmailId + "'", SqlCon))
                 {
                     Sqldr = SqlCmd.ExecuteReader();
                     if (Sqldr.Read())
                     {
-                        uai.ReedemCost = float.Parse(Sqldr.GetValue(0).ToString());
+                        uai.RedeemCost = float.Parse(Sqldr.GetValue(0).ToString());
                         uai.AccountCost = float.Parse(Sqldr.GetValue(0).ToString());
                         uai.Status = 1;
                     }
@@ -1151,7 +1158,7 @@ namespace LotteryWebService
                 Responsedt = Referralds.Tables.Add("Response");
 
                 Referralds.Tables["Response"].Columns.Add("Status", typeof(string));
-                using (SqlCmd=new SqlCommand("SELECT ReferenceCode FROM UserInfo WHERE Email='"+UserId+"'",SqlCon))
+                using (SqlCmd=new SqlCommand("SELECT ReferenceCode FROM UserInfo WHERE EmailId='"+UserId+"'",SqlCon))
                 {
                     SqlCon.Open();
                     Sqldr = SqlCmd.ExecuteReader();
@@ -1307,7 +1314,7 @@ namespace LotteryWebService
                 Responsedt = Referralds.Tables.Add("Response");
 
                 Referralds.Tables["Response"].Columns.Add("Status", typeof(string));
-                using (SqlCmd = new SqlCommand("SELECT ReferenceCode FROM UserInfo WHERE Email='" + UserId + "'", SqlCon))
+                using (SqlCmd = new SqlCommand("SELECT ReferenceCode FROM UserInfo WHERE EmailId='" + UserId + "'", SqlCon))
                 {
                     SqlCon.Open();
                     Sqldr = SqlCmd.ExecuteReader();
@@ -1465,7 +1472,7 @@ namespace LotteryWebService
                 wsr = new WebServiceResponse();
               
                 // Level 1 check
-                using (SqlCmd = new SqlCommand("SELECT ReferenceBy FROM UserInfo WHERE Email='" + UserId + "'", SqlCon))
+                using (SqlCmd = new SqlCommand("SELECT ReferenceBy FROM UserInfo WHERE EmailId='" + UserId + "'", SqlCon))
                 {
                     SqlCon.Open();
                     Sqldr = SqlCmd.ExecuteReader();

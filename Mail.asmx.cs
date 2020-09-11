@@ -18,6 +18,7 @@ namespace LotteryWebService
     // [System.Web.Script.Services.ScriptService]
     public class Mail : System.Web.Services.WebService
     {
+        int Res;
         private SqlConnection SqlCon;
         private SqlCommand SqlCmd;
         private SqlDataReader Sqldr;
@@ -95,14 +96,14 @@ namespace LotteryWebService
         {
             try
             {
-                using (SqlCmd = new SqlCommand("Select EmailId From UserLoginInfo where EmailId='" + EmailId + "'  ", SqlCon))
+                wsr = new WebServiceResponse();
+                using (SqlCmd = new SqlCommand("SELECT EmailId FROM UserInfo WHERE EmailId='" + EmailId + "'  ", SqlCon))
                 {
                     SqlCon.Open();
                     Sqldr = SqlCmd.ExecuteReader();
                     if (Sqldr.Read())
                     {
-                        SqlCon.Close();                       
-                        wsr = new WebServiceResponse();
+                        SqlCon.Close(); 
                         DateTime dt = DateTime.Now;
                         string PasswordResetCode = Guid.NewGuid().ToString();
                         using (MailMessage mm = new MailMessage("admin@vos-it.net", EmailId))
@@ -129,8 +130,8 @@ namespace LotteryWebService
                         using (SqlCmd = new SqlCommand("INSERT INTO ResetPassword VALUES('" + PasswordResetCode + "','" + EmailId + "','" + dt.ToString("yyy/MM/dd HH:mm:ss") + "')", SqlCon))
                         {
                             SqlCon.Open();
-                            int res = SqlCmd.ExecuteNonQuery();
-                            if (res == 1)
+                             Res = SqlCmd.ExecuteNonQuery();
+                            if (Res == 1)
                             {
                                 wsr.Status = "1";
                             }
@@ -165,17 +166,17 @@ namespace LotteryWebService
             try
             {
                 wsr = new WebServiceResponse();
-                using (SqlCommand cmd = new SqlCommand("DELETE ActivationCode FROM Activation WHERE ActivationCode = '" + ActivationCode + "' and Status='0' ", SqlCon))
+                using (SqlCmd = new SqlCommand("DELETE FROM Activation WHERE ActivationCode = '" + ActivationCode + "' AND EmailId='"+ EmailId + "' ", SqlCon))
                 {
                     SqlCon.Open();
-                    Sqldr = cmd.ExecuteReader();
-                    if (Sqldr.Read())
+                   Res = SqlCmd.ExecuteNonQuery();                  
+                    if (Res == 1)
                     {
-                        Sqldr.Close();               
+                        SqlCmd.Dispose();               
                         using (SqlCmd = new SqlCommand("UPDATE UserLoginInfo SET Status='1' WHERE EmailId='" + EmailId + "'",SqlCon)) 
                         {
-                            int rel = SqlCmd.ExecuteNonQuery();
-                            if (rel == 1)
+                            Res = SqlCmd.ExecuteNonQuery();
+                            if (Res == 1)
                             {
                                 SqlCon.Close();
                                 wsr.Status = "1";                                
@@ -209,8 +210,8 @@ namespace LotteryWebService
                 using (SqlCommand cmd = new SqlCommand("DELETE FROM ResetPassword WHERE ResetCode = '" + ResetCode + "' and EmailId='" + EmailId + "' ", SqlCon))
                 {
                     SqlCon.Open();
-                    int res=cmd.ExecuteNonQuery();
-                    if (res==1)
+                    Res=cmd.ExecuteNonQuery();
+                    if (Res==1)
                     {
                         SqlCon.Close();
                         wsr.Status = "1";  
@@ -229,7 +230,6 @@ namespace LotteryWebService
                 if (SqlCon.State == ConnectionState.Open)
                 {
                     SqlCon.Close();
-
                 }
             }
 
